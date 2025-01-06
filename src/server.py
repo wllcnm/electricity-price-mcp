@@ -162,9 +162,9 @@ class ElectricityPriceMCPServer:
         if not normalized_region and region_name:
             if similar_regions:
                 regions_str = "、".join(similar_regions)
-                hints.append(f"未找到地区"{region_name}"，您是否想查询：{regions_str}？")
+                hints.append(f'未找到地区"{region_name}"，您是否想查询：{regions_str}？')
             else:
-                hints.append(f"未找到地区"{region_name}"，请检查地区名称是否正确。")
+                hints.append(f'未找到地区"{region_name}"，请检查地区名称是否正确。')
                 
         if price_date and not is_valid_date:
             hints.append("日期格式不正确，请使用以下格式：2024年3月、2024-3、2024/3")
