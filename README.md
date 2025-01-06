@@ -26,7 +26,7 @@
 - `MYSQL_PORT`: MySQL 服务器端口（默认：3306）
 - `MYSQL_USER`: MySQL 用户名（默认：root）
 - `MYSQL_PASSWORD`: MySQL 密码
-- `MYSQL_DATABASE`: MySQL 数据库名（默认：electricity）
+- `MYSQL_DATABASE`: MySQL 数据库名（默认：price_db）
 
 ## 在 Claude 客户端中使用
 
@@ -40,7 +40,7 @@
       "command": "cmd",
       "args": [
         "/c",
-        "for /f \"tokens=1\" %i in ('docker ps -a --filter name^=mcp-electricity-price --format {{.ID}}') do docker rm -f %i 2>nul & docker pull ghcr.io/wllcnm/mcp-electricity-price:latest & docker run -i --rm --name mcp-electricity-price -e MYSQL_HOST=你的主机地址 -e MYSQL_PORT=3306 -e MYSQL_USER=你的用户名 -e MYSQL_PASSWORD=你的密码 -e MYSQL_DATABASE=electricity ghcr.io/wllcnm/mcp-electricity-price:latest"
+        "for /f \"tokens=1\" %i in ('docker ps -a --filter name^=mcp-electricity-price --format {{.ID}}') do docker rm -f %i 2>nul & docker pull ghcr.io/wllcnm/mcp-electricity-price:latest & docker run -i --rm --name mcp-electricity-price -e MYSQL_HOST=你的主机地址 -e MYSQL_PORT=3306 -e MYSQL_USER=你的用户名 -e MYSQL_PASSWORD=你的密码 -e MYSQL_DATABASE=price_db ghcr.io/wllcnm/mcp-electricity-price:latest"
       ]
     }
   }
@@ -55,7 +55,7 @@
       "command": "sh",
       "args": [
         "-c",
-        "docker ps -a --filter name=mcp-electricity-price -q | xargs -r docker rm -f; docker pull ghcr.io/wllcnm/mcp-electricity-price:latest && docker run -i --rm --name mcp-electricity-price -e MYSQL_HOST=你的主机地址 -e MYSQL_PORT=3306 -e MYSQL_USER=你的用户名 -e MYSQL_PASSWORD=你的密码 -e MYSQL_DATABASE=electricity ghcr.io/wllcnm/mcp-electricity-price:latest"
+        "docker ps -a --filter name=mcp-electricity-price -q | xargs -r docker rm -f; docker pull ghcr.io/wllcnm/mcp-electricity-price:latest && docker run -i --rm --name mcp-electricity-price -e MYSQL_HOST=你的主机地址 -e MYSQL_PORT=3306 -e MYSQL_USER=你的用户名 -e MYSQL_PASSWORD=你的密码 -e MYSQL_DATABASE=price_db ghcr.io/wllcnm/mcp-electricity-price:latest"
       ]
     }
   }
@@ -93,7 +93,7 @@ docker run -i --rm --name mcp-electricity-price ^
   -e MYSQL_PORT=3306 ^
   -e MYSQL_USER=你的用户名 ^
   -e MYSQL_PASSWORD=你的密码 ^
-  -e MYSQL_DATABASE=electricity ^
+  -e MYSQL_DATABASE=price_db ^
   electricity-price-mcp
 ```
 
@@ -109,7 +109,7 @@ docker run -i --rm --name mcp-electricity-price \
   -e MYSQL_PORT=3306 \
   -e MYSQL_USER=你的用户名 \
   -e MYSQL_PASSWORD=你的密码 \
-  -e MYSQL_DATABASE=electricity \
+  -e MYSQL_DATABASE=price_db \
   electricity-price-mcp
 ```
 
