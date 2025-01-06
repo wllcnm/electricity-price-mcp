@@ -8,6 +8,7 @@ import aiomysql
 from mcp.server import Server
 from mcp.types import Tool, TextContent
 from mcp.server.stdio import stdio_server
+from difflib import get_close_matches
 
 # 日志配置
 logging.basicConfig(
@@ -64,13 +65,22 @@ class ElectricityPriceMCPServer:
         }
         logger.info("Server initialized successfully")
 
-    def normalize_region_name(self, region_name: str) -> str:
-        """规范化地区名称
-        - 将简称或别名转换为标准的行政区划全称
-        - 处理特殊情况
-        """
+    def get_similar_regions(self, region_name: str, num_matches: int = 3) -> List[str]:
+        """获取相似的地区名称"""
         if not region_name:
-            return None
+            return []
+            
+        # 合并简称和全称列表
+        all_names = list(self.region_mapping.keys()) + list(self.region_mapping.values())
+        
+        # 使用 difflib 获取相似的地区名称
+        similar_regions = get_close_matches(region_name, all_names, n=num_matches, cutoff=0.4)
+        return similar_regions
+
+    def normalize_region_name(self, region_name: str) -> Tuple[str, List[str]]:
+        """规范化地区名称，返回规范化后的名称和相似地区列表"""
+        if not region_name:
+            return None, []
             
         # 移除空白字符
         region_name = region_name.strip()
@@ -78,31 +88,27 @@ class ElectricityPriceMCPServer:
         # 如果已经是标准名称，直接返回
         for standard_name in self.region_mapping.values():
             if region_name == standard_name:
-                return region_name
+                return region_name, []
         
         # 尝试从简称映射到标准名称
         normalized = self.region_mapping.get(region_name)
         if normalized:
-            return normalized
+            return normalized, []
             
         # 尝试从部分匹配映射到标准名称
         for key, value in self.region_mapping.items():
             if key in region_name or region_name in key:
-                return value
+                return value, []
                 
+        # 如果找不到匹配，返回相似的地区建议
         logger.warning(f"无法找到匹配的地区名称: {region_name}")
-        return region_name
+        similar_regions = self.get_similar_regions(region_name)
+        return None, similar_regions
 
-    def normalize_date(self, date_str: str) -> str:
-        """规范化日期格式
-        支持的输入格式：
-        - 2024年11月
-        - 2024-11
-        - 2024/11
-        返回格式：2024年11月
-        """
+    def normalize_date(self, date_str: str) -> Tuple[str, bool]:
+        """规范化日期格式，返回规范化后的日期和是否有效"""
         if not date_str:
-            return None
+            return None, False
             
         # 移除空白字符
         date_str = date_str.strip()
@@ -118,10 +124,14 @@ class ElectricityPriceMCPServer:
             match = re.match(pattern, date_str)
             if match:
                 year, month = match.groups()
-                return f"{year}年{int(month):02d}月"
+                month_int = int(month)
+                if 1 <= month_int <= 12:
+                    return f"{year}年{month_int}月", True
+                else:
+                    return None, False
                 
         logger.warning(f"无法解析日期格式: {date_str}")
-        return None
+        return None, False
 
     async def ensure_db_pool(self):
         """确保数据库连接池已创建"""
@@ -136,13 +146,31 @@ class ElectricityPriceMCPServer:
                 autocommit=True
             )
 
-    async def query_electricity_prices(self, region_name: str = None, price_date: str = None) -> List[dict]:
-        """查询电价数据"""
+    async def query_electricity_prices(self, region_name: str = None, price_date: str = None) -> Tuple[List[dict], str]:
+        """查询电价数据，返回查询结果和提示信息"""
         await self.ensure_db_pool()
         
         # 规范化输入
-        normalized_region = self.normalize_region_name(region_name)
-        normalized_date = self.normalize_date(price_date)
+        normalized_region, similar_regions = self.normalize_region_name(region_name)
+        normalized_date, is_valid_date = self.normalize_date(price_date)
+        
+        # 构建提示信息
+        hints = []
+        if not region_name and not price_date:
+            return [], "请提供查询的地区或月份。例如：查询北京的电价、查询2024年3月的电价。"
+            
+        if not normalized_region and region_name:
+            if similar_regions:
+                regions_str = "、".join(similar_regions)
+                hints.append(f"未找到地区"{region_name}"，您是否想查询：{regions_str}？")
+            else:
+                hints.append(f"未找到地区"{region_name}"，请检查地区名称是否正确。")
+                
+        if price_date and not is_valid_date:
+            hints.append("日期格式不正确，请使用以下格式：2024年3月、2024-3、2024/3")
+            
+        if hints:
+            return [], "\n".join(hints)
         
         logger.debug(f"规范化后的查询参数: region={normalized_region}, date={normalized_date}")
         
@@ -163,7 +191,7 @@ class ElectricityPriceMCPServer:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 await cur.execute(query, params)
                 result = await cur.fetchall()
-                return result
+                return result, None
 
     def setup_tools(self):
         logger.info("Setting up tools...")
@@ -180,13 +208,13 @@ class ElectricityPriceMCPServer:
                               "2. 地区简称（如：深圳=广东省深圳市，江苏=江苏省）\n"
                               "3. 特殊地区（如：珠三角=广东省珠三角五市，粤北=广东省粤北山区）\n\n"
                               "支持的日期格式：\n"
-                              "1. 标准格式：2024年11月\n"
-                              "2. 短横线：2024-11\n"
-                              "3. 斜杠：2024/11\n\n"
+                              "1. 标准格式：2024年9月\n"
+                              "2. 短横线：2024-9\n"
+                              "3. 斜杠：2024/9\n\n"
                               "工具会自动将输入转换为标准格式。\n"
                               "返回的数据包括：峰谷电价、电压等级、用电类型等信息。\n"
                               "适用场景：查询特定地区的电价、比较不同时期的电价变化、了解峰谷电价差异等。\n"
-                              "示例查询：查询深圳2024-11的电价、获取江苏省最新的峰谷电价等。",
+                              "示例查询：查询深圳2024-9的电价、获取江苏省最新的峰谷电价等。",
                     inputSchema={
                         "type": "object",
                         "properties": {
@@ -196,9 +224,19 @@ class ElectricityPriceMCPServer:
                             },
                             "price_date": {
                                 "type": "string",
-                                "description": "价格日期，支持多种格式，如：2024年11月、2024-11、2024/11"
+                                "description": "价格日期，支持多种格式，如：2024年9月、2024-9、2024/9"
                             }
                         }
+                    }
+                ),
+                Tool(
+                    name="list_available_regions",
+                    description="获取所有可查询的地区列表。\n"
+                              "当用户想了解支持查询哪些地区的电价时使用此工具。\n"
+                              "返回的数据包括所有支持查询的地区名称及其标准全称。",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {}
                     }
                 )
             ]
@@ -215,8 +253,11 @@ class ElectricityPriceMCPServer:
                     price_date = arguments.get("price_date")
                     
                     logger.debug(f"Querying electricity prices for region: {region_name}, date: {price_date}")
-                    results = await self.query_electricity_prices(region_name, price_date)
+                    results, hint = await self.query_electricity_prices(region_name, price_date)
                     
+                    if hint:
+                        return [TextContent(type="text", text=hint)]
+                        
                     if not results:
                         return [TextContent(type="text", text="未找到符合条件的电价数据")]
                     
@@ -252,6 +293,19 @@ class ElectricityPriceMCPServer:
                                 "3. 峰谷时段的具体划分请参考当地电力部门规定"
                     
                     return [TextContent(type="text", text=table + explanation)]
+                
+                elif name == "list_available_regions":
+                    # 构建地区列表表格
+                    table_header = "| 地区简称 | 标准全称 |\n"
+                    table_separator = "|----------|----------|\n"
+                    table_rows = []
+                    
+                    for short_name, full_name in sorted(self.region_mapping.items()):
+                        table_row = f"| {short_name} | {full_name} |\n"
+                        table_rows.append(table_row)
+                    
+                    table = f"\n支持查询的地区列表：\n\n" + table_header + table_separator + "".join(table_rows)
+                    return [TextContent(type="text", text=table)]
                 
                 else:
                     logger.warning(f"Unknown tool: {name}")
