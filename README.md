@@ -40,7 +40,7 @@
       "command": "cmd",
       "args": [
         "/c",
-        "for /f \"tokens=1\" %i in ('docker ps -a --filter name^=mcp-electricity-price --format {{.ID}}') do docker rm -f %i 2>nul & docker pull ghcr.io/你的用户名/mcp-electricity-price:latest & docker run -i --rm --name mcp-electricity-price -e MYSQL_HOST=你的主机地址 -e MYSQL_PORT=3306 -e MYSQL_USER=你的用户名 -e MYSQL_PASSWORD=你的密码 -e MYSQL_DATABASE=electricity ghcr.io/你的用户名/mcp-electricity-price:latest"
+        "for /f \"tokens=1\" %i in ('docker ps -a --filter name^=mcp-electricity-price --format {{.ID}}') do docker rm -f %i 2>nul & docker pull ghcr.io/wllcnm/mcp-electricity-price:latest & docker run -i --rm --name mcp-electricity-price -e MYSQL_HOST=你的主机地址 -e MYSQL_PORT=3306 -e MYSQL_USER=你的用户名 -e MYSQL_PASSWORD=你的密码 -e MYSQL_DATABASE=electricity ghcr.io/wllcnm/mcp-electricity-price:latest"
       ]
     }
   }
@@ -55,7 +55,7 @@
       "command": "sh",
       "args": [
         "-c",
-        "docker ps -a --filter name=mcp-electricity-price -q | xargs -r docker rm -f; docker pull ghcr.io/你的用户名/mcp-electricity-price:latest && docker run -i --rm --name mcp-electricity-price -e MYSQL_HOST=你的主机地址 -e MYSQL_PORT=3306 -e MYSQL_USER=你的用户名 -e MYSQL_PASSWORD=你的密码 -e MYSQL_DATABASE=electricity ghcr.io/你的用户名/mcp-electricity-price:latest"
+        "docker ps -a --filter name=mcp-electricity-price -q | xargs -r docker rm -f; docker pull ghcr.io/wllcnm/mcp-electricity-price:latest && docker run -i --rm --name mcp-electricity-price -e MYSQL_HOST=你的主机地址 -e MYSQL_PORT=3306 -e MYSQL_USER=你的用户名 -e MYSQL_PASSWORD=你的密码 -e MYSQL_DATABASE=electricity ghcr.io/wllcnm/mcp-electricity-price:latest"
       ]
     }
   }
