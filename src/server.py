@@ -220,39 +220,38 @@ class ElectricityPriceMCPServer:
                     if not results:
                         return [TextContent(type="text", text="未找到符合条件的电价数据")]
                     
-                    formatted_results = []
+                    # 构建 Markdown 表格
+                    table_header = "| 地区 | 日期 | 用电类型 | 电压等级 | 峰时电价 | 尖峰电价 | 谷时电价 | 平时电价 | 深谷电价 |\n"
+                    table_separator = "|------|------|----------|----------|----------|-----------|----------|-----------|----------|\n"
+                    table_rows = []
+                    
                     for row in results:
-                        formatted_result = {
-                            "地区": row["region_name"],
-                            "日期": row["price_date"],
-                            "用电类型1": {
-                                "值": row["electricity_type1_value"],
-                                "描述": row["electricity_type1_desc"]
-                            },
-                            "用电类型2": {
-                                "值": row["electricity_type2_value"],
-                                "描述": row["electricity_type2_desc"]
-                            },
-                            "电压等级": {
-                                "值": row["voltage_level_value"],
-                                "描述": row["voltage_level_desc"]
-                            },
-                            "电价信息": {
-                                "峰时电价": float(row["peak_price"]) if row["peak_price"] else None,
-                                "尖峰电价": float(row["sharp_peak_price"]) if row["sharp_peak_price"] else None,
-                                "谷时电价": float(row["valley_price"]) if row["valley_price"] else None,
-                                "平时电价": float(row["normal_price"]) if row["normal_price"] else None,
-                                "深谷电价": float(row["deep_valley_price"]) if row["deep_valley_price"] else None
-                            }
-                        }
-                        formatted_results.append(formatted_result)
+                        # 格式化电价数据，保留小数点后 4 位
+                        peak_price = f"{float(row['peak_price']):.4f}" if row['peak_price'] else "-"
+                        sharp_peak_price = f"{float(row['sharp_peak_price']):.4f}" if row['sharp_peak_price'] else "-"
+                        valley_price = f"{float(row['valley_price']):.4f}" if row['valley_price'] else "-"
+                        normal_price = f"{float(row['normal_price']):.4f}" if row['normal_price'] else "-"
+                        deep_valley_price = f"{float(row['deep_valley_price']):.4f}" if row['deep_valley_price'] else "-"
+                        
+                        # 组合用电类型
+                        electricity_type = f"{row['electricity_type1_desc']}"
+                        if row['electricity_type2_desc']:
+                            electricity_type += f"/{row['electricity_type2_desc']}"
+                            
+                        # 构建表格行
+                        table_row = f"| {row['region_name']} | {row['price_date']} | {electricity_type} | {row['voltage_level_desc']} | {peak_price} | {sharp_peak_price} | {valley_price} | {normal_price} | {deep_valley_price} |\n"
+                        table_rows.append(table_row)
                     
-                    response = {
-                        "total": len(formatted_results),
-                        "data": formatted_results
-                    }
+                    # 组合完整的表格
+                    table = f"\n查询结果（共 {len(results)} 条记录）：\n\n" + table_header + table_separator + "".join(table_rows)
                     
-                    return [TextContent(type="text", text=f"查询结果：{json.dumps(response, ensure_ascii=False, indent=2)}")]
+                    # 添加说明
+                    explanation = "\n\n说明：\n" + \
+                                "1. 电价单位：元/千瓦时\n" + \
+                                "2. '-' 表示该时段无电价数据\n" + \
+                                "3. 峰谷时段的具体划分请参考当地电力部门规定"
+                    
+                    return [TextContent(type="text", text=table + explanation)]
                 
                 else:
                     logger.warning(f"Unknown tool: {name}")
