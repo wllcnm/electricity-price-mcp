@@ -23,6 +23,20 @@ class ElectricityPriceMCPServer:
         self.app = Server("electricity_price_mcp_server")
         self.setup_tools()
         self.pool = None
+        
+        # 初始化用电类型映射
+        self.electricity_types = {
+            "type1": {
+                "两部制": "两部制",
+                "单一制": "单一制"
+            },
+            "type2": {
+                "大工业": "大工业",
+                "工商业": "工商业",
+                "一般工商业": "一般工商业"
+            }
+        }
+        
         # 初始化地区映射
         self.region_mapping = {
             "珠三角": "广东省珠三角五市",
@@ -106,7 +120,13 @@ class ElectricityPriceMCPServer:
         return None, similar_regions
 
     def normalize_date(self, date_str: str) -> Tuple[str, bool]:
-        """规范化日期格式，返回规范化后的日期和是否有效"""
+        """规范化日期格式，返回规范化后的日期和是否有效
+        支持的输入格式：
+        - 2024年12月（标准格式）
+        - 2024-12
+        - 2024/12
+        返回格式：2024年12月
+        """
         if not date_str:
             return None, False
             
@@ -115,9 +135,9 @@ class ElectricityPriceMCPServer:
         
         # 匹配年月格式
         patterns = [
-            r"(\d{4})年(\d{1,2})月",  # 2024年11月
-            r"(\d{4})-(\d{1,2})",     # 2024-11
-            r"(\d{4})/(\d{1,2})"      # 2024/11
+            r"(\d{4})年(\d{1,2})月",  # 2024年12月
+            r"(\d{4})-(\d{1,2})",     # 2024-12
+            r"(\d{4})/(\d{1,2})"      # 2024/12
         ]
         
         for pattern in patterns:
@@ -126,7 +146,8 @@ class ElectricityPriceMCPServer:
                 year, month = match.groups()
                 month_int = int(month)
                 if 1 <= month_int <= 12:
-                    return f"{year}年{month_int}月", True
+                    # 保持两位数月份格式
+                    return f"{year}年{month_int:02d}月", True
                 else:
                     return None, False
                 
@@ -208,13 +229,16 @@ class ElectricityPriceMCPServer:
                               "2. 地区简称（如：深圳=广东省深圳市，江苏=江苏省）\n"
                               "3. 特殊地区（如：珠三角=广东省珠三角五市，粤北=广东省粤北山区）\n\n"
                               "支持的日期格式：\n"
-                              "1. 标准格式：2024年9月\n"
-                              "2. 短横线：2024-9\n"
-                              "3. 斜杠：2024/9\n\n"
-                              "工具会自动将输入转换为标准格式。\n"
+                              "1. 标准格式：2024年12月\n"
+                              "2. 短横线：2024-12\n"
+                              "3. 斜杠：2024/12\n\n"
+                              "用电类型说明：\n"
+                              "1. 用电类型1：两部制、单一制\n"
+                              "2. 用电类型2：大工业、工商业、一般工商业\n\n"
+                              "工具会自动将输入转换为标准格式（2024年12月）。\n"
                               "返回的数据包括：峰谷电价、电压等级、用电类型等信息。\n"
                               "适用场景：查询特定地区的电价、比较不同时期的电价变化、了解峰谷电价差异等。\n"
-                              "示例查询：查询深圳2024-9的电价、获取江苏省最新的峰谷电价等。",
+                              "示例查询：查询深圳2024年12月的两部制（大工业）电价。",
                     inputSchema={
                         "type": "object",
                         "properties": {
@@ -224,7 +248,15 @@ class ElectricityPriceMCPServer:
                             },
                             "price_date": {
                                 "type": "string",
-                                "description": "价格日期，支持多种格式，如：2024年9月、2024-9、2024/9"
+                                "description": "价格日期，标准格式：2024年12月（也支持 2024-12 或 2024/12）"
+                            },
+                            "electricity_type1": {
+                                "type": "string",
+                                "description": "用电类型1，可选值：两部制、单一制"
+                            },
+                            "electricity_type2": {
+                                "type": "string",
+                                "description": "用电类型2，可选值：大工业、工商业、一般工商业"
                             }
                         }
                     }
